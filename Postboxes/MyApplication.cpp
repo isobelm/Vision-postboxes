@@ -25,15 +25,75 @@ int PostboxLocations[NUMBER_OF_POSTBOXES][8] = {
 #define POSTBOX_BOTTOM_RIGHT_ROW 7
 
 
+void write_out_frame(ofstream& output, bool obscured, bool* post_in_box, int frame_count) {
+	output << frame_count << ", ";
+	if (obscured) {
+		output << "View obscured";
+
+	}
+	else {
+		char post_list[100] = { 0 };
+		for (int i = 0; i < NUMBER_OF_POSTBOXES; i++) {
+			if (post_in_box[i]) {
+				char tmp[100] = { 0 };
+				sprintf_s(tmp, " %i", i + 1);
+				strcat_s(post_list, tmp);
+			}
+		}
+		if (post_list[0] == 0) {
+			output << "No post";
+		}
+		else {
+			output << "Post in" << post_list;
+		}
+	}
+	output << "\n";
+}
+
+bool check_for_post(Mat current_frame, int i) {
+	Mat croppedImage, greyImage, thresholdImage, labeledImage;
+	Mat ROI(current_frame, Rect(PostboxLocations[i][POSTBOX_TOP_LEFT_COLUMN], PostboxLocations[i][POSTBOX_TOP_LEFT_ROW],
+		PostboxLocations[i][POSTBOX_BOTTOM_RIGHT_COLUMN] - PostboxLocations[i][POSTBOX_TOP_LEFT_COLUMN], PostboxLocations[i][POSTBOX_BOTTOM_RIGHT_ROW] - PostboxLocations[i][POSTBOX_TOP_LEFT_ROW]));
+
+	ROI.copyTo(croppedImage);
+
+	cvtColor(croppedImage, greyImage, COLOR_BGR2GRAY);
+	GaussianBlur(greyImage, greyImage, Size(3, 3), 0, 0, BORDER_DEFAULT);
+	threshold(greyImage, thresholdImage, 0, 255, THRESH_BINARY | THRESH_OTSU);
+
+	int nRegions = connectedComponents(thresholdImage, labeledImage, 8);
+
+	if (nRegions == 6 || nRegions == 7) {
+		return false;
+	}
+	else
+		return true;
+}
+
+Mat create_histogram(Mat frame, Mat mask) {
+	Mat hsv;
+	cvtColor(frame, hsv, COLOR_BGR2HSV);
+	Mat hist;
+	int hbins = 30, sbins = 32;
+	int histSize[] = { hbins, sbins };
+	float hranges[] = { 0, 180 };
+	float sranges[] = { 0, 256 };
+	const float* ranges[] = { hranges, sranges };
+	int channels[] = { 0, 1 };
+	calcHist(&hsv, 1, channels, mask,
+		hist, 2, histSize, ranges, true, false);
+	return hist;
+}
+
 void MyApplication(VideoCapture& video)
 {
 	if (video.isOpened())
 	{
 		bool post_in_box[6];
 		bool obscured;
-
-		Mat current_frame, thresholded_image, current_frame_gray, first_frame;
-		Mat croppedImage, greyImage, thresholdImage, labeledImage;
+		ofstream output;
+		output.open("output.txt");
+		Mat current_frame, first_frame;
 		video.set(cv::CAP_PROP_POS_FRAMES, 0);
 		video >> current_frame;
 		first_frame = current_frame;
@@ -47,40 +107,16 @@ void MyApplication(VideoCapture& video)
 
 		bitwise_not(mask, mask);
 		double frame_rate = video.get(cv::CAP_PROP_FPS);
-		Mat hsv;
-		cvtColor(first_frame, hsv, COLOR_BGR2HSV);
-		Mat first_frame_hist;
-		int hbins = 30, sbins = 32;
-		int histSize[] = { hbins, sbins };
-		// hue varies from 0 to 179, see cvtColor
-		float hranges[] = { 0, 180 };
-		// saturation varies from 0 (black-gray-white) to
-		// 255 (pure spectrum color)
-		float sranges[] = { 0, 256 };
-		const float* ranges[] = { hranges, sranges };
-		int channels[] = { 0, 1 };
-		//calcHist(&hsv, {0,1}, Mat(), hist, histSize, ranges, true, false);
-		calcHist(&hsv, 1, channels, mask, // do not use mask
-			first_frame_hist, 2, histSize, ranges,
-			true, // the histogram is uniform
-			false);
+		
+		Mat first_frame_hist = create_histogram(first_frame, mask);
 
 		double time_between_frames = 1000.0 / frame_rate;
-		//Timestamper* timer = new Timestamper();
-		//int frame_count = 0;
+		int frame_count = 1;
 
 		while ((!current_frame.empty())) {
-			//cvtColor(current_frame, current_frame_gray, COLOR_BGR2GRAY);
-			//threshold(current_frame_gray, thresholded_image, 90, 255, THRESH_BINARY);
-
-			cvtColor(current_frame, hsv, COLOR_BGR2HSV);
-
 			obscured = false;
-			Mat hist;
-			calcHist(&hsv, 1, channels, mask, // do not use mask
-				hist, 2, histSize, ranges,
-				true, // the histogram is uniform
-				false);
+
+			Mat hist = create_histogram(current_frame, mask);
 
 			double hist_correlation = compareHist(first_frame_hist,
 				hist,
@@ -88,36 +124,17 @@ void MyApplication(VideoCapture& video)
 			);
 
 			for (int i = 0; i < NUMBER_OF_POSTBOXES; i++) {
-				post_in_box[i] = true;
-
-				Mat ROI(current_frame, Rect(PostboxLocations[i][POSTBOX_TOP_LEFT_COLUMN], PostboxLocations[i][POSTBOX_TOP_LEFT_ROW],
-					PostboxLocations[i][POSTBOX_BOTTOM_RIGHT_COLUMN] - PostboxLocations[i][POSTBOX_TOP_LEFT_COLUMN], PostboxLocations[i][POSTBOX_BOTTOM_RIGHT_ROW] - PostboxLocations[i][POSTBOX_TOP_LEFT_ROW]));
-
-				ROI.copyTo(croppedImage);
-
-				cvtColor(croppedImage, greyImage, COLOR_BGR2GRAY);
-				//threshold(greyImage, thresholded_image, 90, 255, THRESH_BINARY);
-				GaussianBlur(greyImage, greyImage, Size(3, 3), 0, 0, BORDER_DEFAULT);
-				threshold(greyImage, thresholdImage, 0, 255, THRESH_BINARY | THRESH_OTSU);
-				// Copy the data into new matrix
-
-
-				int nRegions = connectedComponents(thresholdImage, labeledImage, 8);
-				printf("%i:\t%i\n", i, nRegions);
-				printf("post in %i:  %i\n", i, post_in_box[i]);
-
-				if (nRegions == 6 || nRegions == 7) {
-					post_in_box[i] = false;
-				}
-
+				post_in_box[i] = check_for_post(current_frame, i);
 			}
 
+			bitwise_and(current_frame, current_frame, final, mask);
 
 			char obscure_str[100] = { 0 };
 			sprintf_s(obscure_str, "Correlation:  %f", hist_correlation);
-			putText(current_frame, obscure_str, Point(0,20), FONT_HERSHEY_SIMPLEX, 0.4, Scalar(255, 255, 0));
-			if (hist_correlation < 0.8) {
+			putText(current_frame, obscure_str, Point(0, 20), FONT_HERSHEY_SIMPLEX, 0.4, Scalar(255, 255, 0));
+			if (hist_correlation < 0.85) {
 				putText(current_frame, "OBSCURED", Point(0, 10), FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0, 0, 255));
+				obscured = true;
 			}
 
 			for (int i = 0; i < NUMBER_OF_POSTBOXES; i++) {
@@ -128,17 +145,19 @@ void MyApplication(VideoCapture& video)
 
 			}
 
-			bitwise_and(current_frame, current_frame, final, mask);
 			imshow("Mask", final);
 			imshow("Original", current_frame);
-			//imshow("Threshold", thresholded_image);
-			//imshow("Otsu", otsu_thresholded_image);
 			video >> current_frame;
+			write_out_frame(output, obscured, post_in_box, frame_count);
+			frame_count++;
 
-			char c = (char)waitKey(time_between_frames);
+			//char c = (char)waitKey(time_between_frames);
+			char c = (char)waitKey(1);
 			if (c == 27) break;
 
 		}
+		output.close();
+
 
 		video.release();
 
