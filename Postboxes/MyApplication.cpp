@@ -65,13 +65,13 @@ bool check_for_post(Mat current_frame, int i, int frame_count) {
 
 	if (i = 4 && (frame_count == 4 || frame_count == 19 || frame_count == 41 || frame_count == 50 || frame_count == 80 || frame_count == 24)) {
 		char name[100] = { 0 };
-		sprintf_s(name, "outputs/croppedImage%i-%i.jpg", i, frame_count);
+		sprintf_s(name, "outputs/croppedImage%i-%i.png", i, frame_count);
 		imwrite(name, croppedImage);
-		sprintf_s(name, "outputs/greyImage%i-%i.jpg", i, frame_count);
+		sprintf_s(name, "outputs/greyImage%i-%i.png", i, frame_count);
 		imwrite(name, greyImage);
-		sprintf_s(name, "outputs/thresholdImage%i-%i.jpg", i, frame_count);
+		sprintf_s(name, "outputs/thresholdImage%i-%i.png", i, frame_count);
 		imwrite(name, thresholdImage);
-		sprintf_s(name, "outputs/labeledImage%i-%i.jpg", i, frame_count);
+		sprintf_s(name, "outputs/labeledImage%i-%i.png", i, frame_count);
 		imwrite(name, labeledImage);
 	}
 
