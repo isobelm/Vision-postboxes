@@ -63,15 +63,15 @@ bool check_for_post(Mat current_frame, int i, int frame_count) {
 
 	int nRegions = connectedComponents(thresholdImage, labeledImage, 8);
 
-	if (frame_count == 4 || frame_count == 19 || frame_count == 41 || frame_count == 50 || frame_count == 80) {
+	if (i = 4 && (frame_count == 4 || frame_count == 19 || frame_count == 41 || frame_count == 50 || frame_count == 80 || frame_count == 24)) {
 		char name[100] = { 0 };
-		sprintf_s(name, "croppedImage%i-%i.jpg", i, frame_count);
+		sprintf_s(name, "outputs/croppedImage%i-%i.jpg", i, frame_count);
 		imwrite(name, croppedImage);
-		sprintf_s(name, "greyImage%i-%i.jpg", i, frame_count);
+		sprintf_s(name, "outputs/greyImage%i-%i.jpg", i, frame_count);
 		imwrite(name, greyImage);
-		sprintf_s(name, "thresholdImage%i-%i.jpg", i, frame_count);
+		sprintf_s(name, "outputs/thresholdImage%i-%i.jpg", i, frame_count);
 		imwrite(name, thresholdImage);
-		sprintf_s(name, "labeledImage%i-%i.jpg", i, frame_count);
+		sprintf_s(name, "outputs/labeledImage%i-%i.jpg", i, frame_count);
 		imwrite(name, labeledImage);
 	}
 
@@ -82,21 +82,6 @@ bool check_for_post(Mat current_frame, int i, int frame_count) {
 		return true;
 }
 
-//Mat create_histogram(Mat frame, Mat mask) {
-//	Mat hsv;
-//	cvtColor(frame, hsv, COLOR_BGR2HSV);
-//	Mat hist;
-//	int hbins = 30, sbins = 32;
-//	int histSize[] = { hbins, sbins };
-//	float hranges[] = { 0, 180 };
-//	float sranges[] = { 0, 256 };
-//	const float* ranges[] = { hranges, sranges };
-//	int channels[] = { 0, 1 };
-//	calcHist(&hsv, 1, channels, mask,
-//		hist, 2, histSize, ranges, true, false);
-//	return hist;
-//}
-
 void MyApplication(VideoCapture& video)
 {
 	if (video.isOpened())
@@ -104,23 +89,15 @@ void MyApplication(VideoCapture& video)
 		bool post_in_box[6];
 		bool obscured;
 		ofstream output;
-		output.open("output.txt");
+		output.open("outputs/output.txt");
 		Mat current_frame, first_frame, foreground_mask;
 		video.set(cv::CAP_PROP_POS_FRAMES, 0);
 		video >> current_frame;
 		first_frame = current_frame;
 		Mat final = Mat::zeros(current_frame.size(), CV_8UC3);
 
-		//Mat mask = Mat::zeros(current_frame.size(), CV_8UC1);
-		//for (int i = 0; i < NUMBER_OF_POSTBOXES; i++) {
-			//mask(Rect(PostboxLocations[i][POSTBOX_TOP_LEFT_COLUMN], PostboxLocations[i][POSTBOX_TOP_LEFT_ROW],
-				//PostboxLocations[i][POSTBOX_BOTTOM_RIGHT_COLUMN] - PostboxLocations[i][POSTBOX_TOP_LEFT_COLUMN], PostboxLocations[i][POSTBOX_BOTTOM_RIGHT_ROW] - PostboxLocations[i][POSTBOX_TOP_LEFT_ROW])) = 255;
-		//}
 
-		//bitwise_not(mask, mask);
 		double frame_rate = video.get(cv::CAP_PROP_FPS);
-
-		//Mat first_frame_hist = create_histogram(first_frame, mask);
 
 		double time_between_frames = 1000.0 / frame_rate;
 		int frame_count = 1;
@@ -167,11 +144,11 @@ void MyApplication(VideoCapture& video)
 				putText(current_frame, restult_str, Point(PostboxLocations[i][0], PostboxLocations[i][1]), FONT_HERSHEY_SIMPLEX, 0.4, Scalar(255, 255, 0));
 			}
 			
-			if (frame_count == 4 || frame_count == 19 || frame_count == 41 || frame_count == 50 || frame_count == 80) {
+			if (frame_count == 4 || frame_count == 19 || frame_count == 41 || frame_count == 50 || frame_count == 80 || frame_count == 24) {
 				char name[100] = { 0 };
-				sprintf_s(name, "mask%i.jpg", frame_count);
+				sprintf_s(name, "outputs/mask%i.jpg", frame_count);
 				imwrite(name, foreground_mask);
-				sprintf_s(name, "out%i.jpg", frame_count);
+				sprintf_s(name, "outputs/out%i.jpg", frame_count);
 				imwrite(name, current_frame);
 			}
 
@@ -181,7 +158,6 @@ void MyApplication(VideoCapture& video)
 			write_out_frame(output, obscured, post_in_box, frame_count);
 			frame_count++;
 
-			//char c = (char)waitKey(time_between_frames);
 			char c = (char)waitKey(2);
 			if (c == 27) break;
 
